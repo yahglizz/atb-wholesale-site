@@ -1037,7 +1037,11 @@ window.Icon = Icon;
 // Multi-step seller lead capture form — the centerpiece of the landing page.
 const { useState, useRef, useEffect } = React;
 
-const GHL_WEBHOOK_URL = "WEBHOOK_URL_PLACEHOLDER";
+// GHL direct API integration (CORS fully supported by services.leadconnectorhq.com)
+// Tag "website-inbound" applied to all website leads — change in GHL if needed
+const GHL_API_KEY = "pit-60ed2783-bff9-4bde-b92e-b7204525e51e";
+const GHL_LOCATION_ID = "8GuqpADet7ivY7wXWTpV";
+const GHL_LEAD_TAG = "website-inbound";
 
 const TOTAL_STEPS = 3;
 
@@ -1077,26 +1081,32 @@ async function submitToGHL(data) {
       firstName,
       lastName,
       phone: data.phone,
-      email: data.email,
+      email: data.email || undefined,
       address1: data.address,
       source: "ATB Website",
-      propertyType: data.propType,
-      bedrooms: data.beds,
-      bathrooms: data.baths,
-      condition: data.condition,
-      timeline: data.timeline,
-      reasons: data.reasons.join(", "),
-      locationId: "8GuqpADet7ivY7wXWTpV",
+      locationId: GHL_LOCATION_ID,
+      tags: [GHL_LEAD_TAG],
+      customFields: [
+        { id: "property_type", value: data.propType },
+        { id: "bedrooms", value: data.beds },
+        { id: "bathrooms", value: data.baths },
+        { id: "property_condition", value: data.condition },
+        { id: "sell_timeline", value: data.timeline },
+        { id: "selling_reason", value: data.reasons.join(", ") },
+      ].filter(f => f.value),
     };
 
-    await fetch(GHL_WEBHOOK_URL, {
+    await fetch("https://services.leadconnectorhq.com/contacts/", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + GHL_API_KEY,
+        "Version": "2021-07-28",
+      },
       body: JSON.stringify(payload),
     });
   } catch (err) {
-    // Silently fail — don't block the user from seeing the success screen
-    console.warn("GHL webhook error:", err);
+    console.warn("GHL submit error:", err);
   }
 }
 
